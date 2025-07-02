@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, Response
 import base64
 import cv2
+import os
 import numpy as np
 import requests
 from detect import detectar_letra  
@@ -218,8 +219,9 @@ def estado():
         "seleccionada": palabra_elegida
     })
 
+
+
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get('PORT', 8080))  # Puerto que asigna Cloud Run
+    app.run(host='0.0.0.0', port=port, debug=False)
 
