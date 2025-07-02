@@ -1,9 +1,9 @@
 flask==3.1.1
 gunicorn==21.2.0
-opencv-python==4.11.0.86
+opencv-python-headless==4.11.0.86
 mediapipe==0.10.21
-torch==2.3.1+cpu
-torchvision==0.18.1+cpu
+torch==2.3.1
+torchvision==0.18.1
 transformers==4.53.0
 tokenizers==0.21.2
 huggingface-hub==0.33.1
