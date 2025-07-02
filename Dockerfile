@@ -1,12 +1,17 @@
+# Usa una imagen base de Python
 FROM python:3.10-slim
 
+# Establece el directorio de trabajo
 WORKDIR /app
 
+# Copia archivos
 COPY . .
 
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+# Instala dependencias
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Expone el puerto 8080 que usa Cloud Run
 EXPOSE 8080
 
-CMD ["gunicorn", "-b", "0.0.0.0:8080", "app:app"]
+# Comando para ejecutar la app
+CMD ["python", "app.py"]
