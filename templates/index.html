@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Habla Mano</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        .titulo-principal {
+            background-color: #4CAF50;
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+
+        .titulo-principal h1 {
+            margin: 0;
+            font-size: 36px;
+            font-weight: 600;
+        }
+
+        .container {
+            margin-top: 40px;
+        }
+
+        video,
+        img {
+            border: 2px solid #ccc;
+            border-radius: 10px;
+        }
+
+        #letras {
+            margin-top: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        #letras button {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+            border-radius: 5px;
+            border: none;
+            font-size: 18px;
+            padding: 10px 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #letras button:hover {
+            background-color: #388E3C;
+        }
+
+        button {
+            border: none;
+            border-radius: 6px;
+            padding: 10px 18px;
+            font-size: 15px;
+            font-family: 'Poppins', sans-serif;
+            margin: 8px 6px 0 0;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-borrar {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .btn-borrar:hover {
+            background-color: #d32f2f;
+        }
+
+        .btn-limpiar {
+            background-color: #009688;
+            color: white;
+        }
+
+        .btn-limpiar:hover {
+            background-color: #00796B;
+        }
+
+        .btn-borrar-palabra {
+            background-color: #3f51b5;
+            color: white;
+        }
+
+        .btn-borrar-palabra:hover {
+            background-color: #303f9f;
+        }
+
+        .flex-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 40px;
+            margin-top: 20px;
+        }
+
+        .camara-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .text-section {
+            margin-top: 30px;
+            text-align: left;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .text-section p {
+            font-size: 18px;
+        }
+
+        .text-section ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .text-section ul li {
+            background: #fff;
+            margin: 5px 0;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .text-section ul li:hover {
+            background: #e0e0e0;
+        }
+
+        .recuadro-texto {
+            margin-top: 20px;
+        }
+
+        .recuadro-texto label {
+            font-size: 18px;
+            font-weight: normal;
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .contenido-recuadro {
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 17px;
+            color: #333;
+            min-height: 32px;
+            word-wrap: break-word;
+            font-weight: normal;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="titulo-principal">
+        <h1>Habla Mano</h1>
+    </div>
+
+    <div class="container">
+        <div class="flex-container">
+            <div class="camara-section">
+                <img id="imgRef" src="/static/img/A.jpg" width="150">
+                <p><strong>Letra seleccionada:</strong> <span id="letraSeleccionadaTexto">A</span></p>
+            </div>
+            <div class="camara-section">
+                <video id="video" width="300" autoplay></video>
+                <div id="prediccion">
+                    <p><strong>Letra detectada:</strong> <span id="letraDetectada">-</span></p>
+                    <p><strong>Precisión:</strong> <span id="score">-</span></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="letras"></div>
+
+        <div class="text-section">
+            <div class="recuadro-texto">
+                <label>Texto escrito:</label>
+                <div id="texto-escrito" class="contenido-recuadro">(Esperando letra...)</div>
+                <button class="btn-borrar" onclick="borrarUltimaLetra()">Borrar letra</button>
+                <button class="btn-limpiar" onclick="borrarTextoCompleto()">Limpiar pantalla</button>
+            </div>
+
+            <p style="margin-top: 30px;"><strong>Sugerencias:</strong></p>
+            <ul id="sugerencias-lista"></ul>
+
+            <div class="recuadro-texto">
+                <label>Texto seleccionado:</label>
+                <div id="palabra-final" class="contenido-recuadro">(ninguna)</div>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <button class="btn-borrar-palabra" onclick="borrarUltimaSeleccionada()">Borrar última palabra</button>
+                <button class="btn-borrar" onclick="borrarSeleccionadas()">❌ Borrar palabras</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById("video");
+        const imgRef = document.getElementById("imgRef");
+        const letraSeleccionadaTexto = document.getElementById("letraSeleccionadaTexto");
+        const letraDetectada = document.getElementById("letraDetectada");
+        const scoreTexto = document.getElementById("score");
+        const textoEscrito = document.getElementById("texto-escrito");
+        const sugerenciasLista = document.getElementById("sugerencias-lista");
+        const palabraFinal = document.getElementById("palabra-final");
+
+        let letraSeleccionada = "A";
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => video.srcObject = stream)
+            .catch(err => console.error(err));
+
+        function seleccionarLetra(letra) {
+            letraSeleccionada = letra;
+            letraSeleccionadaTexto.textContent = letra;
+            imgRef.src = `/static/img/${letra}.jpg`;
+            letraDetectada.textContent = "-";
+            scoreTexto.textContent = "-";
+            console.log("[INFO] Letra seleccionada:", letra);
+        }
+
+        const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const letrasDiv = document.getElementById("letras");
+        letras.forEach(l => {
+            const btn = document.createElement("button");
+            btn.textContent = l;
+            btn.onclick = () => seleccionarLetra(l);
+            letrasDiv.appendChild(btn);
+        });
+
+        function getRuta() {
+            return (letraSeleccionada === "J" || letraSeleccionada === "Z") ? "/predict_jz" : "/predict";
+        }
+
+        function enviarPrediccion() {
+            if (!letraSeleccionada || video.videoWidth === 0) return;
+
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0);
+            const dataURL = canvas.toDataURL("image/jpeg");
+
+            fetch(getRuta(), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: dataURL, letra: letraSeleccionada })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    letraDetectada.textContent = data.letra_detectada || "-";
+                    scoreTexto.textContent = data.score != null ? data.score.toFixed(2) : "-";
+
+                    if (data.letra_detectada && data.letra_detectada !== "-") {
+                        // Actualiza el texto escrito de inmediato
+                        fetch('/texto_actual')
+                            .then(res => res.json())
+                            .then(texto => {
+                                textoEscrito.textContent = texto;
+                            });
+                    }
+                });
+
+
+        }
+
+        // Frecuencia: más rápida para J/Z
+        setInterval(() => {
+            enviarPrediccion();
+        }, 400);
+
+        setInterval(() => {
+            fetch('/texto_actual')
+                .then(res => res.json())
+                .then(data => textoEscrito.textContent = data);
+
+            fetch('/sugerencias')
+                .then(res => res.json())
+                .then(data => {
+                    sugerenciasLista.innerHTML = "";
+                    data.forEach(palabra => {
+                        const li = document.createElement("li");
+                        li.textContent = palabra;
+                        li.onclick = () => fetch(`/seleccionar?palabra=${palabra}`);
+                        sugerenciasLista.appendChild(li);
+                    });
+                });
+
+            fetch('/palabra_seleccionada')
+                .then(res => res.json())
+                .then(data => palabraFinal.textContent = data);
+        }, 1000);
+
+        function borrarUltimaLetra() {
+            fetch('/borrar_ultima');
+        }
+
+        function borrarTextoCompleto() {
+            fetch('/borrar_texto_completo');
+        }
+
+        function borrarUltimaSeleccionada() {
+            fetch('/borrar_ultima_seleccionada');
+        }
+
+        function borrarSeleccionadas() {
+            fetch('/borrar_seleccionadas');
+        }
+    </script>
