@@ -1,12 +1,23 @@
+# Framework principal
 flask==3.1.1
 gunicorn==21.2.0
+
+# Procesamiento de imágenes (sin GUI)
 opencv-python-headless==4.11.0.86
+pillow==11.2.1
+
+# Detección por cámara y MediaPipe
 mediapipe==0.10.21
+
+# Machine Learning
 torch==2.3.1
 torchvision==0.18.1
+
+# Modelos HuggingFace
 transformers==4.53.0
 tokenizers==0.21.2
 huggingface-hub==0.33.1
 safetensors==0.5.3
-pillow==11.2.1
+
+# Utilidades
 requests==2.32.4
