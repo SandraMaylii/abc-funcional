@@ -6,6 +6,7 @@ import numpy as np
 import requests
 from detect import detectar_letra  
 from mediapipe_gestures import detectar_letra_j, detectar_letra_z  
+from transformers import pipeline, AutoTokenizer, AutoModelForMaskedLM
 
 app = Flask(__name__)
 
@@ -14,44 +15,41 @@ buffer_letras = ""
 palabras_sugeridas = []
 palabra_elegida = ""
 ultima_letra = None
-fill_mask = None
-gpt_generator = None
 
-# === Sugerencias automáticas con carga perezosa ===
+# === Sugerencias automáticas ===
+from transformers import pipeline, AutoTokenizer, AutoModelForMaskedLM
+import requests
+
+# Modelo para letras distintas de "w"
+model_id = "PlanTL-GOB-ES/roberta-base-bne"
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForMaskedLM.from_pretrained(model_id)
+fill_mask = pipeline("fill-mask", model=model, tokenizer=tokenizer, top_k=20)
+
+# Modelo especial solo para "w"
+gpt_generator = pipeline("text-generation", model="PlanTL-GOB-ES/gpt2-base-bne")
+
 def sugerir_palabra(letras, topn=5):
-    global fill_mask, gpt_generator
-
     letras = letras.strip().lower()
     if not letras:
         return []
 
-    # Para palabras con "w" usamos modelo de texto
     if letras.startswith("w"):
         try:
-            if gpt_generator is None:
-                from transformers import pipeline
-                gpt_generator = pipeline("text-generation", model="PlanTL-GOB-ES/gpt2-base-bne")
             results = gpt_generator(letras, max_length=10, num_return_sequences=topn)
             sugerencias = [
                 res["generated_text"].split()[0].strip()
                 for res in results
                 if res["generated_text"].lower().startswith(letras)
             ]
-            return list(dict.fromkeys(sugerencias))[:topn]
+            return list(dict.fromkeys(sugerencias))[:topn]  # Elimina duplicados
         except Exception as e:
             print("Error en sugerencia GPT Hugging Face:", e)
             return []
 
-    # Para otras letras usamos fill-mask o Datamuse
+    # Resto de letras: usa fill-mask y Datamuse
+    input_text = f"{letras}<mask>"
     try:
-        if fill_mask is None:
-            from transformers import pipeline, AutoTokenizer, AutoModelForMaskedLM
-            model_id = "PlanTL-GOB-ES/roberta-base-bne"
-            tokenizer = AutoTokenizer.from_pretrained(model_id)
-            model = AutoModelForMaskedLM.from_pretrained(model_id)
-            fill_mask = pipeline("fill-mask", model=model, tokenizer=tokenizer, top_k=20)
-
-        input_text = f"{letras}<mask>"
         results = fill_mask(input_text)
         sugerencias = [
             r['token_str'].replace(' ', '').strip()
@@ -61,15 +59,16 @@ def sugerir_palabra(letras, topn=5):
         if sugerencias:
             return list(dict.fromkeys(sugerencias))[:topn]
     except Exception as e:
-        print("Error en sugerencia:", e)
+        print("Error en sugerencia :", e)
 
-    # Fallback: API externa Datamuse
+    # Fallback: Datamuse
+    url = f"https://api.datamuse.com/words?sp={letras}*&v=es&max={topn}"
     try:
-        url = f"https://api.datamuse.com/words?sp={letras}*&v=es&max={topn}"
         response = requests.get(url)
         return [item['word'] for item in response.json()] if response.status_code == 200 else []
     except:
         return []
+
 
 # === Agregar letra al buffer si es válida ===
 def agregar_letra(letra_detectada, threshold=0.75, probabilidad=1.0):
@@ -94,12 +93,15 @@ def predict():
     img_data = data['image']
     letra = data['letra']  
 
+    # Si es J o Z, redirigir al endpoint correcto
     if letra in ['J', 'Z']:
         return jsonify({"letra_detectada": "-", "score": 0.0, "es_correcto": False})
 
+    # Procesar imagen
     encoded = img_data.split(',')[1]
     img_bytes = base64.b64decode(encoded)
-    frame = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     resultado = detectar_letra(frame, letra)
     letra_detectada = resultado["letra_detectada"]
@@ -110,6 +112,8 @@ def predict():
 
     if letra_detectada != "-" and score >= 0.75:
         agregar_letra(letra_detectada, probabilidad=score)
+    else:
+        print("[❌] No se agregó la letra por baja precisión o error.")
 
     return jsonify(resultado)
 
@@ -122,7 +126,8 @@ def predict_jz():
 
     encoded = img_data.split(',')[1]
     img_bytes = base64.b64decode(encoded)
-    frame = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+    nparr = np.frombuffer(img_bytes, np.uint8)
+    frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     if letra == 'J':
         resultado = detectar_letra_j(frame, letra)
@@ -131,8 +136,14 @@ def predict_jz():
     else:
         resultado = {"letra_detectada": "-", "score": 0.0, "es_correcto": False}
 
-    if resultado.get("letra_detectada") != "-" and resultado.get("score", 0.0) >= 0.75 and resultado.get("es_correcto", False):
-        agregar_letra(resultado["letra_detectada"], probabilidad=resultado["score"])
+    letra_detectada = resultado.get("letra_detectada", "-")
+    score = resultado.get("score", 0.0)
+    es_correcto = resultado.get("es_correcto", False)
+
+    print(f"[JZ] Letra detectada: {letra_detectada} | Score: {score} | Correcto: {es_correcto}")
+
+    if letra_detectada != "-" and score >= 0.75 and es_correcto:
+        agregar_letra(letra_detectada, probabilidad=score)
 
     return jsonify(resultado)
 
@@ -192,11 +203,12 @@ def borrar_seleccionadas():
 
 @app.route('/limpiar')
 def limpiar():
-    global buffer_letras, palabras_sugeridas, palabra_elegida, ultima_letra
+    global buffer_letras, palabras_sugeridas, palabra_elegida, ultima_letra, texto_escrito
     buffer_letras = ""
     palabras_sugeridas.clear()
     palabra_elegida = ""
     ultima_letra = None
+    texto_escrito = "" 
     return Response("ok")
 
 @app.route('/estado')
@@ -207,7 +219,12 @@ def estado():
         "seleccionada": palabra_elegida
     })
 
-# === Inicio de servidor ===
+
+
+import os
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 10000))  # default para Render
     app.run(host="0.0.0.0", port=port)
+
+
